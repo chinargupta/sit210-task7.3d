@@ -1,0 +1,53 @@
+import RPi.GPIO as GPIO
+import time
+
+# Pin definitions
+TRIGGER_PIN = 18  # Define the trigger pin for the ultrasonic sensor
+ECHO_PIN = 24     # Define the echo pin for the ultrasonic sensor
+LED_PIN = 12      # Define the pin for the LED
+
+# Initialize GPIO
+GPIO.setmode(GPIO.BCM)   # Set the GPIO mode to BCM
+GPIO.setwarnings(False)  # Disable GPIO warnings
+GPIO.setup(LED_PIN, GPIO.OUT)  # Set LED_PIN as an output
+GPIO.setup(TRIGGER_PIN, GPIO.OUT)  # Set TRIGGER_PIN as an output
+GPIO.setup(ECHO_PIN, GPIO.IN)      # Set ECHO_PIN as an input
+
+# Initialize LED PWM
+led_pwm = GPIO.PWM(LED_PIN, 1000)  # Create a PWM instance for the LED
+led_pwm.start(0)  # Start the LED PWM with a duty cycle of 0 (LED off)
+
+# Function to measure distance from the ultrasonic sensor
+def get_distance():
+    GPIO.output(TRIGGER_PIN, True)  # Set TRIGGER_PIN high
+    time.sleep(0.00001)  # Keep TRIGGER_PIN high for a short duration
+    GPIO.output(TRIGGER_PIN, False)  # Set TRIGGER_PIN low
+    
+    pulse_start = time.time()  # Record the start time of the pulse
+    pulse_end = time.time()    # Initialize pulse_end
+    
+    while GPIO.input(ECHO_PIN) == 0:  # Wait for the ECHO_PIN to go high
+        pulse_start = time.time()
+    
+    while GPIO.input(ECHO_PIN) == 1:  # Wait for the ECHO_PIN to go low again
+        pulse_end = time.time()
+    
+    pulse_duration = pulse_end - pulse_start  # Calculate the pulse duration
+    distance = (pulse_duration * 34300) / 2  # Calculate distance in centimeters
+    
+    return int(distance)  # Return the distance as an integer
+
+try:
+    while True:
+        distance = get_distance()  # Read the distance from the ultrasonic sensor
+        print("Distance = {} cm".format(distance))
+        
+        if distance < 50:
+            led_pwm.ChangeDutyCycle((50 - distance) * 2)  # Adjust LED brightness based on distance
+        else:
+            led_pwm.start(0)  # Turn off the LED if the distance is greater than or equal to 50
+        
+        time.sleep(1)  # Wait for 1 second before the next measurement
+
+except KeyboardInterrupt:
+    GPIO.cleanup()  # Clean up GPIO on keyboard interrupt
